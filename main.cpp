@@ -36,16 +36,16 @@ Position camera;
 int WIDTH_WINDOWS;
 int HEIGHT_WINDOWS;
 
-double m_slide=100;
+double m_slide=90;
 
-bool cubicSpline = true;
-bool bezierSurface = false;
+bool cubicSpline = false;
+bool bezierSurface = true;
 
 
 // lighting parameters.
 bool flatShading = false;
-bool bezierSurfaceMapping = false;
-bool bezierSurfaceLighting = false;
+bool bezierSurfaceMapping = true;
+bool bezierSurfaceLighting = true;
 // data for the lighting
 //
 // for x-y-z axis
@@ -57,7 +57,7 @@ GLfloat darkSurface[]   = {1.0, 0.0, 0.0, 1.0};
 GLfloat lightAmbient[] =  {0.1, 0.1, 0.1, 1.0};
 GLfloat lightDiffuse[] =  {0.7, 0.7, 0.7, 1.0};
 GLfloat lightSpecular[] = {0.4, 0.4, 0.4, 1.0};
-GLfloat lightPosition[] = {100, 100.0, 100.0, 0.0};
+GLfloat lightPosition[] = {0, 0, 100.0, 0.0};
 GLfloat lightDirection[] ={0.0, 0.0, -1.0};
 GLfloat shininess       = 50;
 // for the materials
@@ -101,6 +101,7 @@ void DrawStippleLines(Position p1, Position p2){
 
 void setup()
 {
+    gluLookAt(45, 45, 45, 0, 0, 0, 0, 1, 0);
     glClearColor(0, 0, 0, 1.0); // *should* display black background
 
     { 
@@ -147,6 +148,29 @@ void DrawCubicSpline(){
 void DrawBezierSurface(){
   // draw your own Bezier Surface here.
 
+    glEnable(GL_COLOR_MATERIAL);
+    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+
+    // control points
+    glPointSize(5);
+    glBegin(GL_POINTS); 
+    glColor3f(1.0f, 1.0f, 0);
+        for (int i = 0; i < controlPoints.size(); i++) {
+            glVertex3d(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z);
+        }
+    glEnd();
+}
+
+void drawAxes() {
+    glBegin(GL_LINES);
+        glColor3f(.5,.5,.5);
+        glVertex3d(100, 0, 0);
+        glVertex3d(-100, 0, 0);
+        glVertex3d(0, 100, 0);
+        glVertex3d(0, -100, 0);
+        glVertex3d(0, 0, 100);
+        glVertex3d(0, 0, -100);
+    glEnd();
 }
 
 void display(){
@@ -174,6 +198,7 @@ void display(){
         camera.x = camera.y = camera.z = m_slide;
         gluLookAt(camera.x, camera.y, camera.z, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
         
+        drawAxes();
         if(bezierSurfaceMapping || bezierSurfaceLighting){
             // lighting
 
