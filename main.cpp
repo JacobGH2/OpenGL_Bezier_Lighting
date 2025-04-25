@@ -187,9 +187,12 @@ void DrawBezierSurface() {
             bcs[i][j] = binomCoeff(i, j);
         }
     }
-    vector<point3d> pt_buffer;
-    for (double u = 0; u <= 60; u += .3) { // surface boundaries
-        for (double v = 0; v <= 60; v += .3) {
+    vector<vector<point3d>> pt_buffer;
+    int indi = 0, indj = 0;
+    for (double u = 0; u <= 60; u += .5) { // surface boundaries
+        vector<point3d> tmp_buffer;
+        for (double v = 0; v <= 60; v += .5) {
+            indj++;
             double x = 0, y = 0, z = 0;
             for (int j = 0; j <= 3; j++) { // for all control points
                 double jBezierBlend = bezierBlend(v/60.0, j, 3);
@@ -202,17 +205,19 @@ void DrawBezierSurface() {
             }
             // store point
             point3d p = {x, y, z};
-            pt_buffer.push_back(p);
+            tmp_buffer.push_back(p);
         }
+        pt_buffer.push_back(tmp_buffer);
     }
     // draw all points
     glBegin(GL_POINTS);
     float color = .02;
-    int buff_size = pt_buffer.size();
-    for (int i = 0; i < buff_size; i++) {
-        glColor3f((double)i/buff_size, 1-(double)i/buff_size, .5);
-        glVertex3f(pt_buffer[i].x, pt_buffer[i].y, pt_buffer[i].z);
-        color += .0001;
+    for (int i = 0; i < 121; i++) {
+        for (int j = 0; j < 121; j++) {
+            glColor3f((double)i/121, 1-(double)i/121, .5);
+            glVertex3f(pt_buffer[i][j].x, pt_buffer[i][j].y, pt_buffer[i][j].z);
+            color += .0001;
+        } 
     }
     glEnd();
 }
