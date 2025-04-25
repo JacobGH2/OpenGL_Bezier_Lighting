@@ -30,6 +30,7 @@ struct Position{
 
 vector<Position> cubicPoints;
 vector<Position> controlPoints;
+int bcs[4][4];
 
 Position camera;
 
@@ -159,7 +160,7 @@ int binomCoeff(int n, int k) {
 }
 
 double bezierBlend(double u, int k, int n) {
-    return binomCoeff(n, k) * pow(u, k) * pow((1.0-u), n-k);
+    return bcs[n][k] * pow(u, k) * pow((1.0-u), n-k);
 }
 
 void plotPoint (double x, double y, double z)
@@ -177,15 +178,24 @@ void modifyControlPoints(int a, int b, int c, int d) {
 }
 
 void DrawBezierSurface() {
-    for (double u = 0; u <= 60; u += 1) { // surface boundaries
-        for (double v = 0; v <= 60; v += 1) {
+    // compute binomCoeffs
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            bcs[i][j] = binomCoeff(i, j);
+        }
+    }
+
+    for (double u = 0; u <= 60; u += .5) { // surface boundaries
+        for (double v = 0; v <= 60; v += .5) {
             double x = 0, y = 0, z = 0;
             glColor3f(u/60, v/60, 50);
             for (int j = 0; j <= 3; j++) { // for all control points
+                double jBezierBlend = bezierBlend(v/60.0, j, 3);
                 for (int k = 0; k <= 3; k++) {
-                    x += controlPoints[j*4 + k].x * bezierBlend(v/60.0, j, 4) * bezierBlend(u/60.0, k, 4);
-                    y += controlPoints[j*4 + k].y * bezierBlend(v/60.0, j, 4) * bezierBlend(u/60.0, k, 4);
-                    z += controlPoints[j*4 + k].z * bezierBlend(v/60.0, j, 4) * bezierBlend(u/60.0, k, 4);
+                    double bezierBlendResult = jBezierBlend * bezierBlend(u/60.0, k, 3);
+                    x += controlPoints[k*4 + j].x * bezierBlendResult;
+                    y += controlPoints[k*4 + j].y * bezierBlendResult;
+                    z += controlPoints[k*4 + j].z * bezierBlendResult;
                 }
             }
             // plot point
@@ -250,7 +260,7 @@ void display(){
         gluLookAt(camera.x, camera.y, camera.z, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
         glRotatef(rot, 0, 1, 0);
         drawAxes();
-        if(bezierSurfaceMapping || bezierSurfaceLighting){
+        /* if(bezierSurfaceMapping || bezierSurfaceLighting){
             // lighting
 
             glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
@@ -264,11 +274,11 @@ void display(){
             if(flatShading) glShadeModel(GL_FLAT);
             else            glShadeModel(GL_SMOOTH);
 
-        }
+        } */
        
         DrawBezierScene();
 
-        rot=rot+0.6;
+        rot=rot+0.4;
         if(rot>360) rot=rot-360;
     }
     glutSwapBuffers(); // display newly drawn image in window
@@ -290,14 +300,20 @@ void keyHandler(unsigned char key, int x, int y) {
         case 'f':
             modifyControlPoints(0, 0, 0, 1);
             break;
+        case 'j':
+            exit(0);
+            break;
     }
     glutPostRedisplay();
 }
 
+void idleRedisplay() { // for continuous rotation
+    glutPostRedisplay();
+}
 
 int main(int argc, char** argv){
     glutInit(&argc,argv);
-    glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGB);
+    glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGB|GLUT_DEPTH);
     glutInitWindowSize(1000,500);
     glutInitWindowPosition(100,100);
     glutCreateWindow("Spline and Surface Demo");
@@ -309,6 +325,7 @@ int main(int argc, char** argv){
      //glutMouseFunc(mouse);  // define your own mouse event.
      //glutMotionFunc(motion);  // define your own motion event, e.g., rotate OBJ model.
     glutKeyboardFunc(keyHandler);
+    glutIdleFunc(idleRedisplay);
     //Creates Menu on Right Click
     // CreateMenu();
 
