@@ -36,7 +36,7 @@ Position camera;
 int WIDTH_WINDOWS;
 int HEIGHT_WINDOWS;
 
-double m_slide=90;
+double m_slide=45;
 
 bool cubicSpline = false;
 bool bezierSurface = true;
@@ -114,11 +114,12 @@ void setup()
  
     {// generate the 4*4 control points.
         int i, j;
-        for( i = 0; i < 4; i++){
-            for(j = 0; j < 4; j++){
-                controlPoints.push_back(Position(j * 20, 0, i * 20));
+        for( i = -30; i <= 30; i += 20){
+            for(j = -30; j <= 30; j += 20){
+                controlPoints.push_back(Position(i, 0, j));
             }
         }
+        //controlPoints[10] = Position(0, 50, 40);
     
     }
    
@@ -145,7 +146,55 @@ void DrawCubicSpline(){
     DrawStippleLines(cubicPoints.at(2), cubicPoints.at(3));
 }
 
-void DrawBezierSurface(){
+int fact(int n) {
+    int ret = 1;
+    for (int i = 2; i <= n; i++) {
+        ret *= i;
+    }
+    return ret;
+}
+
+int binomCoeff(int n, int k) {
+    return fact(n)/(fact(k)*fact(n-k));
+}
+
+double bezierBlend(double u, int k, int n) {
+    return binomCoeff(n, k) * pow(u, k) * pow((1.0-u), n-k);
+}
+
+void plotPoint (double x, double y, double z)
+{
+    glBegin(GL_POINTS);
+        glColor3d(1.0, 0, 0);
+        glVertex3f(x, y, z);
+    glEnd();
+}
+
+void modifyControlPoints(int a, int b, int c, int d) {
+    controlPoints[2*4 + 1].y = controlPoints[2*4 + 1].y + a;
+    controlPoints[1*4 + 1].y = controlPoints[1*4 + 1].y + b;
+    controlPoints[2*4 + 2].y = controlPoints[2*4 + 2].y + c;
+    controlPoints[1*4 + 2].y = controlPoints[1*4 + 2].y + d;
+}
+
+void DrawBezierSurface() {
+    for (double u = 0; u <= 80; u += 1) { // surface boundaries
+        for (double v = 0; v <= 80; v += 1) {
+            double x = 0, y = 0, z = 0;
+            for (int j = 0; j <= 3; j++) { // for all control points
+                for (int k = 0; k <= 3; k++) {
+                    x += controlPoints[j*4 + k].x * bezierBlend(v/80.0, j, 4) * bezierBlend(u/80.0, k, 4);
+                    y += controlPoints[j*4 + k].y * bezierBlend(v/80.0, j, 4) * bezierBlend(u/80.0, k, 4);
+                    z += controlPoints[j*4 + k].z * bezierBlend(v/80.0, j, 4) * bezierBlend(u/80.0, k, 4);
+                }
+            }
+            // plot point
+            plotPoint(x, y, z);
+        }
+    }
+}
+
+void DrawBezierScene(){
   // draw your own Bezier Surface here.
 
     glEnable(GL_COLOR_MATERIAL);
@@ -159,6 +208,8 @@ void DrawBezierSurface(){
             glVertex3d(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z);
         }
     glEnd();
+    
+    DrawBezierSurface();
 }
 
 void drawAxes() {
@@ -215,11 +266,29 @@ void display(){
 
         }
        
-        DrawBezierSurface();
+        DrawBezierScene();
     }
     glutSwapBuffers(); // display newly drawn image in window
 
 
+}
+
+void keyHandler(unsigned char key, int x, int y) {
+    switch (key) {
+        case 'e':
+            modifyControlPoints(10, 0, 0, 0);
+            break;
+        case 'r':
+            modifyControlPoints(0, 10, 0, 0);
+            break;
+        case 'd':
+            modifyControlPoints(0, 0, 10, 0);
+            break;
+        case 'f':
+            modifyControlPoints(0, 0, 0, 10);
+            break;
+    }
+    glutPostRedisplay();
 }
 
 
@@ -236,7 +305,7 @@ int main(int argc, char** argv){
      glutDisplayFunc(display);
      //glutMouseFunc(mouse);  // define your own mouse event.
      //glutMotionFunc(motion);  // define your own motion event, e.g., rotate OBJ model.
-  
+    glutKeyboardFunc(keyHandler);
     //Creates Menu on Right Click
     // CreateMenu();
 
