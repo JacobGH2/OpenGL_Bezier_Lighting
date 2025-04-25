@@ -31,7 +31,14 @@ struct point3d {
     double x, y, z;
 };
 
-vector<Position> cubicPoints;
+struct triangle { 
+    point3d p1, p2, p3;
+};
+
+struct normal {
+    double x, y, z;
+};
+
 vector<Position> controlPoints;
 int bcs[4][4];
 
@@ -40,9 +47,8 @@ Position camera;
 int WIDTH_WINDOWS;
 int HEIGHT_WINDOWS;
 
-double m_slide=50;
+double m_slide=90;
 
-bool cubicSpline = false;
 bool bezierSurface = true;
 
 double rot = 0;
@@ -81,40 +87,10 @@ void projection(int width, int height, int perspectiveORortho){
       glLoadIdentity();
 }
 
-void DrawStippleLines(Position p1, Position p2){
-  glEnable(GL_LINE_STIPPLE);
-  {
-    glColor3f(255.0,0.0,0.0); //blue dot 
-    glLineStipple(1, 0x0FFF); /* dashed */
-    glBegin(GL_LINE_STRIP);
-       glVertex3f(p1.x, p1.y, p1.z);
-       glVertex3f(p2.x, p2.y, p2.z);
-    glEnd();
-  } 
-  glDisable(GL_LINE_STIPPLE);
-
-  glColor3f(255.0, 255.0, 0.0); //blue dot 
-  glPointSize(10.0);
-  glBegin(GL_POINTS);
-       glVertex3f(p1.x, p1.y, p1.z);
-       glVertex3f(p2.x, p2.y, p2.z);
-  glEnd();
-  
-  glFlush();
-}
-
 void setup()
 {
     gluLookAt(45, 45, 45, 0, 0, 0, 0, 1, 0);
     glClearColor(0, 0, 0, 1.0); // *should* display black background
-
-    { 
-        // generate some data for the cubicPoints, bezierPoints, bsplinePoints
-        cubicPoints.push_back(Position(100, 200, 0));
-        cubicPoints.push_back(Position(200, 300, 0));
-        cubicPoints.push_back(Position(300, 300, 0));
-        cubicPoints.push_back(Position(400, 200, 0));
-    }
  
     {// generate the 4*4 control points.
         int i, j;
@@ -126,7 +102,6 @@ void setup()
         //controlPoints[10] = Position(0, 50, 40);
     
     }
-   
 }
 
 void reshape( int w, int h ){
@@ -142,12 +117,6 @@ void reshape( int w, int h ){
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-}
-
-void DrawCubicSpline(){
-    // implement your own cubic spline function here.
-    DrawStippleLines(cubicPoints.at(0), cubicPoints.at(1));
-    DrawStippleLines(cubicPoints.at(2), cubicPoints.at(3));
 }
 
 int fact(int n) {
@@ -180,6 +149,15 @@ void modifyControlPoints(int a, int b, int c, int d) {
     controlPoints[1*4 + 2].y = controlPoints[1*4 + 2].y + d;
 }
 
+void genTriangles(const vector<vector<point3d>> &pts, vector<triangle> &tr) {
+    for (int i = 0; i < pts.size()-1; i++) {
+        for (int j = 0; j < pts[0].size()-1; j++) {
+            tr.push_back({pts[i][j], pts[i+1][j+1], pts[i][j+1]});
+            tr.push_back({pts[i][j], pts[i+1][j], pts[i][j+1]});
+        }
+    }
+}
+
 void DrawBezierSurface() {
     // compute binomCoeffs
     for (int i = 0; i < 4; i++) {
@@ -187,6 +165,7 @@ void DrawBezierSurface() {
             bcs[i][j] = binomCoeff(i, j);
         }
     }
+    // compute bezier surface points
     vector<vector<point3d>> pt_buffer;
     int indi = 0, indj = 0;
     for (double u = 0; u <= 60; u += .5) { // surface boundaries
@@ -209,15 +188,44 @@ void DrawBezierSurface() {
         }
         pt_buffer.push_back(tmp_buffer);
     }
+
+    // find triangles from point grid
+    vector<triangle> triangles;
+    genTriangles(pt_buffer, triangles);
+
+    // determine triangle normals
+    vector<normal> norms;
+    for (int i = 0; i < triangles.size(); i++) {
+        point3d U = {triangles[i].p2.x-triangles[i].p1.x, triangles[i].p2.y-triangles[i].p1.y, triangles[i].p2.z-triangles[i].p1.z};
+        point3d V = {triangles[i].p3.x-triangles[i].p1.x, triangles[i].p3.y-triangles[i].p1.y, triangles[i].p3.z-triangles[i].p1.z};
+        double Nx = U.y*V.z - U.z*V.y;
+        double Ny = U.z*V.x - U.x*V.z;
+        double Nz = U.x*V.y - U.y*V.x;
+        norms.push_back({Nx, Ny, Nz});
+    }
+
+    // calculate dot product (to get sign)
+    vector<bool> vis;
+    normal view = {camera.x, camera.y, camera.z};
+    for (int i = 0; i < norms.size(); i++) {
+        double dot = view.x*norms[i].x + view.y*norms[i].y + view.z*norms[i].z;
+        if (dot <= 0) vis.push_back(true);
+        else vis.push_back(false);
+    }
+    
+    // plot points in visible triangles
+    glPointSize(1);
     // draw all points
     glBegin(GL_POINTS);
-    float color = .02;
-    for (int i = 0; i < 121; i++) {
-        for (int j = 0; j < 121; j++) {
-            glColor3f((double)i/121, 1-(double)i/121, .5);
-            glVertex3f(pt_buffer[i][j].x, pt_buffer[i][j].y, pt_buffer[i][j].z);
-            color += .0001;
-        } 
+    int drawn = 0;
+    glColor3f(1.0, 0, 1.0);
+    for (int i = 0; i < triangles.size(); i++) {
+        if (vis[i]) {
+            drawn++;
+            glVertex3f(triangles[i].p1.x, triangles[i].p1.y, triangles[i].p1.z);
+            glVertex3f(triangles[i].p2.x, triangles[i].p2.y, triangles[i].p2.z);
+            glVertex3f(triangles[i].p3.x, triangles[i].p3.y, triangles[i].p3.z);
+        }
     }
     glEnd();
 }
@@ -258,17 +266,6 @@ void display(){
    glEnable(GL_DEPTH_TEST); 
 
    glLoadIdentity();
-
-   if(cubicSpline){
-        // setting environment 
-        glMatrixMode( GL_PROJECTION );
-        glLoadIdentity();
-        glOrtho( 0, WIDTH_WINDOWS, HEIGHT_WINDOWS, 0, -1, 1 );
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-        // draw
-        DrawCubicSpline();        
-   }
   
     if(bezierSurface){
         //set gluLookAt and gluPerspective
@@ -296,7 +293,7 @@ void display(){
        
         DrawBezierScene();
 
-        rot=rot+0.4;
+        rot=rot+0.3;
         if(rot>360) rot=rot-360;
     }
     glutSwapBuffers(); // display newly drawn image in window
