@@ -36,12 +36,12 @@ Position camera;
 int WIDTH_WINDOWS;
 int HEIGHT_WINDOWS;
 
-double m_slide=45;
+double m_slide=50;
 
 bool cubicSpline = false;
 bool bezierSurface = true;
 
-
+double rot = 0;
 // lighting parameters.
 bool flatShading = false;
 bool bezierSurfaceMapping = true;
@@ -114,8 +114,8 @@ void setup()
  
     {// generate the 4*4 control points.
         int i, j;
-        for( i = -30; i <= 30; i += 20){
-            for(j = -30; j <= 30; j += 20){
+        for( i = 0; i <= 60; i += 20){
+            for(j = 0; j <= 60; j += 20){
                 controlPoints.push_back(Position(i, 0, j));
             }
         }
@@ -165,7 +165,6 @@ double bezierBlend(double u, int k, int n) {
 void plotPoint (double x, double y, double z)
 {
     glBegin(GL_POINTS);
-        glColor3d(1.0, 0, 0);
         glVertex3f(x, y, z);
     glEnd();
 }
@@ -178,14 +177,15 @@ void modifyControlPoints(int a, int b, int c, int d) {
 }
 
 void DrawBezierSurface() {
-    for (double u = 0; u <= 80; u += 1) { // surface boundaries
-        for (double v = 0; v <= 80; v += 1) {
+    for (double u = 0; u <= 60; u += 1) { // surface boundaries
+        for (double v = 0; v <= 60; v += 1) {
             double x = 0, y = 0, z = 0;
+            glColor3f(u/60, v/60, 50);
             for (int j = 0; j <= 3; j++) { // for all control points
                 for (int k = 0; k <= 3; k++) {
-                    x += controlPoints[j*4 + k].x * bezierBlend(v/80.0, j, 4) * bezierBlend(u/80.0, k, 4);
-                    y += controlPoints[j*4 + k].y * bezierBlend(v/80.0, j, 4) * bezierBlend(u/80.0, k, 4);
-                    z += controlPoints[j*4 + k].z * bezierBlend(v/80.0, j, 4) * bezierBlend(u/80.0, k, 4);
+                    x += controlPoints[j*4 + k].x * bezierBlend(v/60.0, j, 4) * bezierBlend(u/60.0, k, 4);
+                    y += controlPoints[j*4 + k].y * bezierBlend(v/60.0, j, 4) * bezierBlend(u/60.0, k, 4);
+                    z += controlPoints[j*4 + k].z * bezierBlend(v/60.0, j, 4) * bezierBlend(u/60.0, k, 4);
                 }
             }
             // plot point
@@ -248,7 +248,7 @@ void display(){
        // gluLookAt(100, 100, m_slide, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
         camera.x = camera.y = camera.z = m_slide;
         gluLookAt(camera.x, camera.y, camera.z, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-        
+        glRotatef(rot, 0, 1, 0);
         drawAxes();
         if(bezierSurfaceMapping || bezierSurfaceLighting){
             // lighting
@@ -267,6 +267,9 @@ void display(){
         }
        
         DrawBezierScene();
+
+        rot=rot+0.6;
+        if(rot>360) rot=rot-360;
     }
     glutSwapBuffers(); // display newly drawn image in window
 
@@ -276,16 +279,16 @@ void display(){
 void keyHandler(unsigned char key, int x, int y) {
     switch (key) {
         case 'e':
-            modifyControlPoints(10, 0, 0, 0);
+            modifyControlPoints(1, 0, 0, 0);
             break;
         case 'r':
-            modifyControlPoints(0, 10, 0, 0);
+            modifyControlPoints(0, 1, 0, 0);
             break;
         case 'd':
-            modifyControlPoints(0, 0, 10, 0);
+            modifyControlPoints(0, 0, 1, 0);
             break;
         case 'f':
-            modifyControlPoints(0, 0, 0, 10);
+            modifyControlPoints(0, 0, 0, 1);
             break;
     }
     glutPostRedisplay();
