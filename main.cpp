@@ -292,9 +292,6 @@ void display(){
         } */
        
         DrawBezierScene();
-
-        rot=rot+0.3;
-        if(rot>360) rot=rot-360;
     }
     glutSwapBuffers(); // display newly drawn image in window
 
@@ -318,6 +315,13 @@ void keyHandler(unsigned char key, int x, int y) {
         case 'j':
             exit(0);
             break;
+        case 'q':
+            rot=rot+5;
+            if(rot>360) rot=rot-360;
+            break;
+        case 'w':
+            rot=rot-5;
+            if(rot<0) rot=360+rot;
     }
     glutPostRedisplay();
 }
