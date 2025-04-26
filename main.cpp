@@ -56,6 +56,7 @@ double rot = 0;
 bool flatShading = false;
 bool bezierSurfaceMapping = true;
 bool bezierSurfaceLighting = true;
+bool wireframe = true;
 // data for the lighting
 //
 // for x-y-z axis
@@ -153,7 +154,7 @@ void genTriangles(const vector<vector<point3d>> &pts, vector<triangle> &tr) {
     for (int i = 0; i < pts.size()-1; i++) {
         for (int j = 0; j < pts[0].size()-1; j++) {
             tr.push_back({pts[i][j], pts[i+1][j+1], pts[i][j+1]});
-            tr.push_back({pts[i][j], pts[i+1][j], pts[i][j+1]});
+            tr.push_back({pts[i][j], pts[i+1][j], pts[i+1][j+1]});
         }
     }
 }
@@ -206,30 +207,38 @@ void DrawBezierSurface() {
 
     // calculate dot product (to get sign)
     vector<bool> vis;
-    normal view = {camera.x, camera.y, camera.z};
+    normal view = {camera.x, camera.y, camera.z}; // constant view vector
     for (int i = 0; i < norms.size(); i++) {
         double dot = view.x*norms[i].x + view.y*norms[i].y + view.z*norms[i].z;
         if (dot <= 0) vis.push_back(true);
         else vis.push_back(false);
     }
     
-    // plot points in visible triangles
+    // plot lines from visible triangles (some repeated)
     glPointSize(1);
     int num_tri = triangles.size();
-    for (int i = 0; i < num_tri; i++) {
-        if (vis[i]) {
-            glColor3f((double) i/num_tri, 1-(double) i/num_tri, .5);
-            glBegin(GL_LINES);
-            glVertex3f(triangles[i].p2.x, triangles[i].p2.y, triangles[i].p2.z);
-            glVertex3f(triangles[i].p1.x, triangles[i].p1.y, triangles[i].p1.z);
-            glVertex3f(triangles[i].p2.x, triangles[i].p2.y, triangles[i].p2.z);
-            glVertex3f(triangles[i].p3.x, triangles[i].p3.y, triangles[i].p3.z);
-            glVertex3f(triangles[i].p1.x, triangles[i].p1.y, triangles[i].p1.z);
-            glVertex3f(triangles[i].p3.x, triangles[i].p3.y, triangles[i].p3.z);
-            glEnd();
+    if (wireframe) {  // WIREFRAME
+        for (int i = 0; i < num_tri; i++) {
+            if (vis[i]) {
+                glColor3f((double) i/num_tri, 1-(double) i/num_tri, .5);
+                glBegin(GL_LINES);
+                glVertex3f(triangles[i].p2.x, triangles[i].p2.y, triangles[i].p2.z);
+                glVertex3f(triangles[i].p3.x, triangles[i].p3.y, triangles[i].p3.z);
+                glEnd();
+            }
         }
-    }
-   
+    } else { // POLYGONS (filled triangles)
+        for (int i = 0; i < num_tri; i++) {
+            if (vis[i]) {
+                glColor3f((double) i/num_tri, 1-(double) i/num_tri, .5);
+                glBegin(GL_TRIANGLES);
+                glVertex3f(triangles[i].p2.x, triangles[i].p2.y, triangles[i].p2.z);
+                glVertex3f(triangles[i].p1.x, triangles[i].p1.y, triangles[i].p1.z);
+                glVertex3f(triangles[i].p3.x, triangles[i].p3.y, triangles[i].p3.z);
+                glEnd();
+            }
+        }
+    }   
 }
 
 void DrawBezierScene(){
@@ -324,6 +333,11 @@ void keyHandler(unsigned char key, int x, int y) {
         case 'w':
             rot=rot-5;
             if(rot<0) rot=360+rot;
+            break;
+        case 'u':
+            if (wireframe) wireframe = false;
+            else wireframe = true;
+            break;
     }
     glutPostRedisplay();
 }
