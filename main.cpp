@@ -215,19 +215,21 @@ void DrawBezierSurface() {
     
     // plot points in visible triangles
     glPointSize(1);
-    // draw all points
-    glBegin(GL_POINTS);
-    int drawn = 0;
-    glColor3f(1.0, 0, 1.0);
-    for (int i = 0; i < triangles.size(); i++) {
+    int num_tri = triangles.size();
+    for (int i = 0; i < num_tri; i++) {
         if (vis[i]) {
-            drawn++;
+            glColor3f((double) i/num_tri, 1-(double) i/num_tri, .5);
+            glBegin(GL_LINES);
+            glVertex3f(triangles[i].p2.x, triangles[i].p2.y, triangles[i].p2.z);
             glVertex3f(triangles[i].p1.x, triangles[i].p1.y, triangles[i].p1.z);
             glVertex3f(triangles[i].p2.x, triangles[i].p2.y, triangles[i].p2.z);
             glVertex3f(triangles[i].p3.x, triangles[i].p3.y, triangles[i].p3.z);
+            glVertex3f(triangles[i].p1.x, triangles[i].p1.y, triangles[i].p1.z);
+            glVertex3f(triangles[i].p3.x, triangles[i].p3.y, triangles[i].p3.z);
+            glEnd();
         }
     }
-    glEnd();
+   
 }
 
 void DrawBezierScene(){
@@ -301,16 +303,16 @@ void display(){
 void keyHandler(unsigned char key, int x, int y) {
     switch (key) {
         case 'e':
-            modifyControlPoints(1, 0, 0, 0);
+            modifyControlPoints(10, 0, 0, 0);
             break;
         case 'r':
-            modifyControlPoints(0, 1, 0, 0);
+            modifyControlPoints(0, 10, 0, 0);
             break;
         case 'd':
-            modifyControlPoints(0, 0, 1, 0);
+            modifyControlPoints(0, 0, 10, 0);
             break;
         case 'f':
-            modifyControlPoints(0, 0, 0, 1);
+            modifyControlPoints(0, 0, 0, 10);
             break;
         case 'j':
             exit(0);
