@@ -53,10 +53,9 @@ bool bezierSurface = true;
 
 double rot = 0;
 // lighting parameters.
-bool flatShading = false;
-bool bezierSurfaceMapping = true;
+bool flatShading = true;
 bool bezierSurfaceLighting = true;
-bool wireframe = true;
+bool wireframe = false;
 // data for the lighting
 //
 // for x-y-z axis
@@ -68,12 +67,11 @@ GLfloat darkSurface[]   = {1.0, 0.0, 0.0, 1.0};
 GLfloat lightAmbient[] =  {0.1, 0.1, 0.1, 1.0};
 GLfloat lightDiffuse[] =  {0.7, 0.7, 0.7, 1.0};
 GLfloat lightSpecular[] = {0.4, 0.4, 0.4, 1.0};
-GLfloat lightPosition[] = {0, 0, 100.0, 0.0};
-GLfloat lightDirection[] ={0.0, 0.0, -1.0};
-GLfloat shininess       = 50;
+GLfloat lightPosition[] = {30, 100, 30, 1.0};
+GLfloat shininess       = 1.0f;
 // for the materials
-GLfloat matAmbient [] = {0.0, 1.0, 0.0, 1.0};
-GLfloat matDiffuse [] = {0.0, 1.0, 0.0, 1.0};
+GLfloat matAmbient [] = {0.0, 0.7, 0.0, 1.0};
+GLfloat matDiffuse [] = {0.0, 0.7, 0, 1.0};
 GLfloat matSpecular[] = {1.0, 1.0, 1.0, 1.0};
 
 void projection(int width, int height, int perspectiveORortho){
@@ -230,8 +228,10 @@ void DrawBezierSurface() {
     } else { // POLYGONS (filled triangles)
         for (int i = 0; i < num_tri; i++) {
             if (vis[i]) {
-                glColor3f((double) i/num_tri, 1-(double) i/num_tri, .5);
+                glColor3f(0, .5, 0);
+                GLfloat norm[3] = {-1*(float)norms[i].x, -1*(float)norms[i].y, -1*(float)norms[i].z};
                 glBegin(GL_TRIANGLES);
+                glNormal3fv(norm);
                 glVertex3f(triangles[i].p2.x, triangles[i].p2.y, triangles[i].p2.z);
                 glVertex3f(triangles[i].p1.x, triangles[i].p1.y, triangles[i].p1.z);
                 glVertex3f(triangles[i].p3.x, triangles[i].p3.y, triangles[i].p3.z);
@@ -245,6 +245,7 @@ void DrawBezierScene(){
   // draw your own Bezier Surface here.
 
     glEnable(GL_COLOR_MATERIAL);
+    glDisable(GL_CULL_FACE);
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 
     // control points
@@ -260,6 +261,8 @@ void DrawBezierScene(){
 }
 
 void drawAxes() {
+    glEnable(GL_COLOR);
+    glColor3f(0.5, 0.5, 0.5);
     glBegin(GL_LINES);
         glColor3f(.5,.5,.5);
         glVertex3d(100, 0, 0);
@@ -275,38 +278,49 @@ void display(){
    // glClear(GL_COLOR_BUFFER_BIT); // clear window
    glClear(GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT );
    glEnable(GL_DEPTH_TEST); 
-
    glLoadIdentity();
+   projection(WIDTH_WINDOWS, HEIGHT_WINDOWS, 1); // set projection.
+    // gluLookAt(100, 100, m_slide, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+    camera.x = camera.y = camera.z = m_slide;
+    gluLookAt(camera.x, camera.y, camera.z, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+
+    glMatrixMode(GL_MODELVIEW);
+   
   
     if(bezierSurface){
-        //set gluLookAt and gluPerspective
-        projection(WIDTH_WINDOWS, HEIGHT_WINDOWS, 1); // set projection.
-       // gluLookAt(100, 100, m_slide, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-        camera.x = camera.y = camera.z = m_slide;
-        gluLookAt(camera.x, camera.y, camera.z, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
         glRotatef(rot, 0, 1, 0);
-        drawAxes();
-        /* if(bezierSurfaceMapping || bezierSurfaceLighting){
-            // lighting
 
+        glPushMatrix();
+            glDisable(GL_LIGHTING);   // <<< Disable lighting temporarily
+            glColor3f(1.0, 1.0, 1.0); // Set sphere color to white manually
+            glTranslatef(30, 100.0, 30);
+            glutSolidSphere(2.0, 10, 10);
+            glEnable(GL_LIGHTING);    // <<< Re-enable lighting afterward
+        glPopMatrix();
+        if(bezierSurfaceLighting){
+            // lighting
             glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
             glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
             glLightfv(GL_LIGHT0, GL_SPECULAR, lightSpecular);
             glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-            glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, lightDirection);
+            //glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, lightDirection);
             glEnable(GL_LIGHTING);
             glEnable(GL_LIGHT0);
+
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, matDiffuse);
+            glMaterialfv(GL_FRONT, GL_SPECULAR, matSpecular);
+            glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
+            
             //flat shading or smooth shading
             if(flatShading) glShadeModel(GL_FLAT);
             else            glShadeModel(GL_SMOOTH);
-
-        } */
-       
+        } else {
+            glDisable(GL_LIGHTING);
+        }
+        drawAxes();
         DrawBezierScene();
     }
     glutSwapBuffers(); // display newly drawn image in window
-
-
 }
 
 void keyHandler(unsigned char key, int x, int y) {
@@ -338,11 +352,19 @@ void keyHandler(unsigned char key, int x, int y) {
             if (wireframe) wireframe = false;
             else wireframe = true;
             break;
+        case 'l':
+            if (bezierSurfaceLighting) bezierSurfaceLighting = false;
+            else bezierSurfaceLighting = true;
+            break;
+        case 'k':
+            if (flatShading) flatShading = false;
+            else flatShading = true;
+            break;
+        case 's':
+            shininess += 1;
+            cout << shininess << endl;
+            break;
     }
-    glutPostRedisplay();
-}
-
-void idleRedisplay() { // for continuous rotation
     glutPostRedisplay();
 }
 
@@ -360,7 +382,6 @@ int main(int argc, char** argv){
      //glutMouseFunc(mouse);  // define your own mouse event.
      //glutMotionFunc(motion);  // define your own motion event, e.g., rotate OBJ model.
     glutKeyboardFunc(keyHandler);
-    glutIdleFunc(idleRedisplay);
     //Creates Menu on Right Click
     // CreateMenu();
 
