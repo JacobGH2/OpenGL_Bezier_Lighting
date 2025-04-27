@@ -50,6 +50,7 @@ int HEIGHT_WINDOWS;
 double m_slide=90;
 
 bool bezierSurface = true;
+bool show_backface = true;
 
 double rot = 0;
 // lighting parameters.
@@ -71,7 +72,7 @@ GLfloat lightPosition[] = {30, 100, 30, 1.0};
 GLfloat shininess       = 1.0f;
 // for the materials
 GLfloat matAmbient [] = {0.0, 0.7, 0.0, 1.0};
-GLfloat matDiffuse [] = {0.0, 0.7, 0, 1.0};
+GLfloat matDiffuse [] = {0, 0.7, 0, 1.0};
 GLfloat matSpecular[] = {1.0, 1.0, 1.0, 1.0};
 
 void projection(int width, int height, int perspectiveORortho){
@@ -217,7 +218,7 @@ void DrawBezierSurface() {
     int num_tri = triangles.size();
     if (wireframe) {  // WIREFRAME
         for (int i = 0; i < num_tri; i++) {
-            if (vis[i]) {
+            if (vis[i] || show_backface) {
                 glColor3f((double) i/num_tri, 1-(double) i/num_tri, .5);
                 glBegin(GL_LINES);
                 glVertex3f(triangles[i].p2.x, triangles[i].p2.y, triangles[i].p2.z);
@@ -227,7 +228,7 @@ void DrawBezierSurface() {
         }
     } else { // POLYGONS (filled triangles)
         for (int i = 0; i < num_tri; i++) {
-            if (vis[i]) {
+            if (vis[i] || show_backface) {
                 glColor3f(0, .5, 0);
                 GLfloat norm[3] = {-1*(float)norms[i].x, -1*(float)norms[i].y, -1*(float)norms[i].z};
                 glBegin(GL_TRIANGLES);
@@ -290,12 +291,12 @@ void display(){
     if(bezierSurface){
         glRotatef(rot, 0, 1, 0);
 
-        glPushMatrix();
-            glDisable(GL_LIGHTING);   // <<< Disable lighting temporarily
-            glColor3f(1.0, 1.0, 1.0); // Set sphere color to white manually
+        glPushMatrix(); // draw light source independent of lighting
+            glDisable(GL_LIGHTING);
+            glColor3f(1.0, 1.0, 1.0); 
             glTranslatef(30, 100.0, 30);
             glutSolidSphere(2.0, 10, 10);
-            glEnable(GL_LIGHTING);    // <<< Re-enable lighting afterward
+            glEnable(GL_LIGHTING); 
         glPopMatrix();
         if(bezierSurfaceLighting){
             // lighting
@@ -363,6 +364,10 @@ void keyHandler(unsigned char key, int x, int y) {
         case 's':
             shininess += 1;
             cout << shininess << endl;
+            break;
+        case 'b':
+            if (show_backface) show_backface = false;
+            else show_backface = true;
             break;
     }
     glutPostRedisplay();
