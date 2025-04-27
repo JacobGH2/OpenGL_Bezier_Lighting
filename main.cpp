@@ -87,8 +87,19 @@ void projection(int width, int height, int perspectiveORortho){
       glLoadIdentity();
 }
 
+void printState() {
+    string on = "on";
+    string off = "off";
+    string bfcState = show_backface ? off : on;
+    string lightingState = bezierSurfaceLighting ? on : off;
+    string renderMode = wireframe ? "wireframe" : "polygon";
+    string shadingMode = flatShading ? "flat" : "smooth";
+    cout << "BFC: " << bfcState << "| Lighting: " << lightingState << "| Render Mode: " << renderMode << "| Shading: " << shadingMode << endl;
+}
+
 void setup()
 {
+    printState();
     gluLookAt(45, 45, 45, 0, 0, 0, 0, 1, 0);
     glClearColor(0, 0, 0, 1.0); // *should* display black background
  
@@ -294,10 +305,15 @@ void display(){
         glPushMatrix(); // draw light source independent of lighting
             glDisable(GL_LIGHTING);
             glColor3f(1.0, 1.0, 1.0); 
-            glTranslatef(30, 100.0, 30);
+            glTranslatef(lightPosition[0], lightPosition[1], lightPosition[2]);
             glutSolidSphere(2.0, 10, 10);
             glEnable(GL_LIGHTING); 
         glPopMatrix();
+
+        glDisable(GL_LIGHTING); // draw axes independent of lighting
+            drawAxes();
+        glEnable(GL_LIGHTING);
+
         if(bezierSurfaceLighting){
             // lighting
             glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
@@ -318,7 +334,6 @@ void display(){
         } else {
             glDisable(GL_LIGHTING);
         }
-        drawAxes();
         DrawBezierScene();
     }
     glutSwapBuffers(); // display newly drawn image in window
@@ -352,14 +367,17 @@ void keyHandler(unsigned char key, int x, int y) {
         case 'u':
             if (wireframe) wireframe = false;
             else wireframe = true;
+            printState();
             break;
         case 'l':
             if (bezierSurfaceLighting) bezierSurfaceLighting = false;
             else bezierSurfaceLighting = true;
+            printState();
             break;
         case 'k':
             if (flatShading) flatShading = false;
             else flatShading = true;
+            printState();
             break;
         case 's':
             shininess += 1;
@@ -368,6 +386,7 @@ void keyHandler(unsigned char key, int x, int y) {
         case 'b':
             if (show_backface) show_backface = false;
             else show_backface = true;
+            printState();
             break;
     }
     glutPostRedisplay();
