@@ -47,7 +47,9 @@ Position camera;
 int WIDTH_WINDOWS;
 int HEIGHT_WINDOWS;
 
-double m_slide=90;
+int activeCtrlPoint = 5;
+
+double m_slide=200;
 
 bool bezierSurface = true;
 bool show_backface = true;
@@ -69,7 +71,7 @@ GLfloat lightAmbient[] =  {0.1, 0.1, 0.1, 1.0};
 GLfloat lightDiffuse[] =  {0.7, 0.7, 0.7, 1.0};
 GLfloat lightSpecular[] = {0.4, 0.4, 0.4, 1.0};
 GLfloat lightPosition[] = {30, 100, 30, 1.0};
-GLfloat shininess       = 1.0f;
+GLfloat shininess       = 50.0f;
 // for the materials
 GLfloat matAmbient [] = {0.0, 0.7, 0.0, 1.0};
 GLfloat matDiffuse [] = {0, 0.7, 0, 1.0};
@@ -94,7 +96,7 @@ void printState() {
     string lightingState = bezierSurfaceLighting ? on : off;
     string renderMode = wireframe ? "wireframe" : "polygon";
     string shadingMode = flatShading ? "flat" : "smooth";
-    cout << "BFC: " << bfcState << "| Lighting: " << lightingState << "| Render Mode: " << renderMode << "| Shading: " << shadingMode << endl;
+    cout << " BFC: " << bfcState << "| Lighting: " << lightingState << "| Render Mode: " << renderMode << "| Shading: " << shadingMode << "     \r" << std::flush;
 }
 
 void setup()
@@ -153,11 +155,11 @@ void plotPoint (double x, double y, double z)
     glEnd();
 }
 
-void modifyControlPoints(int a, int b, int c, int d) {
-    controlPoints[2*4 + 1].y = controlPoints[2*4 + 1].y + a;
-    controlPoints[1*4 + 1].y = controlPoints[1*4 + 1].y + b;
-    controlPoints[2*4 + 2].y = controlPoints[2*4 + 2].y + c;
-    controlPoints[1*4 + 2].y = controlPoints[1*4 + 2].y + d;
+void modifyControlPoints(int id, int x, int y, int z) {
+    // 9, 5, 10, 6
+    controlPoints[id].x += x;
+    controlPoints[id].y += y;
+    controlPoints[id].z += z;
 }
 
 void genTriangles(const vector<vector<point3d>> &pts, vector<triangle> &tr) {
@@ -245,7 +247,9 @@ void DrawBezierSurface() {
                 glBegin(GL_TRIANGLES);
                 glNormal3fv(norm);
                 glVertex3f(triangles[i].p2.x, triangles[i].p2.y, triangles[i].p2.z);
+                glNormal3fv(norm);
                 glVertex3f(triangles[i].p1.x, triangles[i].p1.y, triangles[i].p1.z);
+                glNormal3fv(norm);
                 glVertex3f(triangles[i].p3.x, triangles[i].p3.y, triangles[i].p3.z);
                 glEnd();
             }
@@ -258,7 +262,13 @@ void DrawBezierScene(){
 
     glEnable(GL_COLOR_MATERIAL);
     glDisable(GL_CULL_FACE);
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+    //glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+
+    glPointSize(5);
+    glBegin(GL_POINTS); // draw active control point
+    glColor3f(1.0f, 0, 0);
+    glVertex3d(controlPoints[activeCtrlPoint].x, controlPoints[activeCtrlPoint].y, controlPoints[activeCtrlPoint].z);
+    glEnd();
 
     // control points
     glPointSize(5);
@@ -268,7 +278,7 @@ void DrawBezierScene(){
             glVertex3d(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z);
         }
     glEnd();
-    
+
     DrawBezierSurface();
 }
 
@@ -324,7 +334,8 @@ void display(){
             glEnable(GL_LIGHTING);
             glEnable(GL_LIGHT0);
 
-            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, matDiffuse);
+            glMaterialfv(GL_FRONT, GL_AMBIENT, matAmbient);
+            glMaterialfv(GL_FRONT, GL_DIFFUSE, matDiffuse);
             glMaterialfv(GL_FRONT, GL_SPECULAR, matSpecular);
             glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
             
@@ -341,17 +352,17 @@ void display(){
 
 void keyHandler(unsigned char key, int x, int y) {
     switch (key) {
-        case 'e':
-            modifyControlPoints(10, 0, 0, 0);
-            break;
         case 'r':
-            modifyControlPoints(0, 10, 0, 0);
+            if (activeCtrlPoint == 5) activeCtrlPoint = 9;
+            else if (activeCtrlPoint == 9) activeCtrlPoint = 10;
+            else if (activeCtrlPoint == 10) activeCtrlPoint = 6;
+            else if (activeCtrlPoint == 6) activeCtrlPoint = 5;
             break;
         case 'd':
-            modifyControlPoints(0, 0, 10, 0);
+            modifyControlPoints(activeCtrlPoint, 0, -10, 0);
             break;
         case 'f':
-            modifyControlPoints(0, 0, 0, 10);
+            modifyControlPoints(activeCtrlPoint, 0, 10, 0);
             break;
         case 'j':
             exit(0);
@@ -380,13 +391,43 @@ void keyHandler(unsigned char key, int x, int y) {
             printState();
             break;
         case 's':
-            shininess += 1;
-            cout << shininess << endl;
+            shininess += 5;
+            if (shininess>128) shininess = 128;
+            break;
+        case 'a':
+            shininess -= 5;
+            if (shininess<1) shininess = 1;
             break;
         case 'b':
             if (show_backface) show_backface = false;
             else show_backface = true;
             printState();
+            break;
+        case 'm':
+            matDiffuse[1] += .1;
+            if (matDiffuse[1]>1.0) matDiffuse[1] = 1.0;
+            break;
+        case 'n':
+            matDiffuse[1] -= .1;
+            if (matDiffuse[1]<0) matDiffuse[1] = 0;
+            break;
+    }
+    glutPostRedisplay();
+}
+
+void arrowKeys(int key, int x, int y) {
+    switch (key) {
+        case GLUT_KEY_UP:
+            modifyControlPoints(activeCtrlPoint, 0, 0, -10);
+            break;
+        case GLUT_KEY_DOWN:
+            modifyControlPoints(activeCtrlPoint, 0, 0, 10);
+            break;
+        case GLUT_KEY_LEFT:
+            modifyControlPoints(activeCtrlPoint, -10, 0, 0);
+            break;
+        case GLUT_KEY_RIGHT:
+            modifyControlPoints(activeCtrlPoint, 10, 0, 0);
             break;
     }
     glutPostRedisplay();
@@ -406,6 +447,7 @@ int main(int argc, char** argv){
      //glutMouseFunc(mouse);  // define your own mouse event.
      //glutMotionFunc(motion);  // define your own motion event, e.g., rotate OBJ model.
     glutKeyboardFunc(keyHandler);
+    glutSpecialFunc(arrowKeys);
     //Creates Menu on Right Click
     // CreateMenu();
 
