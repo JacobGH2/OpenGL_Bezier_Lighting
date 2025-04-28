@@ -167,7 +167,7 @@ void setup()
     
     }
 
-    const char *texFile = "./flower.bmp";
+    const char *texFile = "./jacob.bmp";
     readBMP((char*) texFile);
     glGenTextures(1, &texName);
     glBindTexture(GL_TEXTURE_2D, texName);
@@ -499,6 +499,14 @@ void keyHandler(unsigned char key, int x, int y) {
             if (show_texture) show_texture = false;
             else show_texture = true;
             printState();
+            break;
+        case 'z':
+            lightPosition[0] += 5;
+            lightPosition[2] += 5;
+            break;
+        case 'x':
+            lightPosition[0] -= 5;
+            lightPosition[2] -= 5;
             break;
     }
     glutPostRedisplay();
