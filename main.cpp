@@ -31,6 +31,14 @@ struct point3d {
     double x, y, z;
 };
 
+struct point2d {
+    double u, v;
+};
+
+struct triTex {
+    point2d t1, t2, t3;
+};
+
 struct triangle { 
     point3d p1, p2, p3;
 };
@@ -49,10 +57,17 @@ int HEIGHT_WINDOWS;
 
 int activeCtrlPoint = 5;
 
-double m_slide=200;
+double m_slide = 90;
 
 bool bezierSurface = true;
 bool show_backface = true;
+bool show_texture = false;
+
+// texture data
+#define header 54
+int WIDTH_IMG, HEIGHT_IMG;
+vector<unsigned char> pixelData;
+static GLuint texName;
 
 double rot = 0;
 // lighting parameters.
@@ -75,7 +90,7 @@ GLfloat shininess       = 50.0f;
 // for the materials
 GLfloat matAmbient [] = {0.0, 0.7, 0.0, 1.0};
 GLfloat matDiffuse [] = {0, 0.7, 0, 1.0};
-GLfloat matSpecular[] = {1.0, 1.0, 1.0, 1.0};
+GLfloat matSpecular[] = {1.0, 1.0, 1.0, 0.1};
 
 void projection(int width, int height, int perspectiveORortho){
   float ratio = (float)width/height;
@@ -96,7 +111,43 @@ void printState() {
     string lightingState = bezierSurfaceLighting ? on : off;
     string renderMode = wireframe ? "wireframe" : "polygon";
     string shadingMode = flatShading ? "flat" : "smooth";
-    cout << " BFC: " << bfcState << "| Lighting: " << lightingState << "| Render Mode: " << renderMode << "| Shading: " << shadingMode << "     \r" << std::flush;
+    string textureMode = show_texture ? "texture" : "color";
+    cout << " BFC: " << bfcState << " | Lighting: " << lightingState << " | Render Mode: " << renderMode << " | Shading: " << shadingMode << " | Surface: " << textureMode << "   \r" << std::flush;
+}
+
+void readBMP(char *filename) {
+
+    FILE *fd;
+    if ((fd = fopen(filename, "rb")) == NULL) {
+        printf("Error happens\n");
+    }
+    unsigned char info[header];
+    fread(info, sizeof(unsigned char), header, fd); // read the header-byte header
+    // extract the  heght and width of the image from the header info.
+
+    WIDTH_IMG = *(int *)&info[18];
+    HEIGHT_IMG = *(int *)&info[22];
+    int size = 3 * WIDTH_IMG * HEIGHT_IMG;
+    //printf("%d, %d\n", WIDTH_IMG, HEIGHT_IMG);
+
+    unsigned char *pixel = (unsigned char *)malloc(sizeof(unsigned char) * size);
+    fread(pixel, sizeof(unsigned char), size, fd); // read the data
+    fclose(fd);
+
+    // restore pixel from BGR to RGB.
+    //
+    for (int i = 0; i < size; i += 3) {
+        unsigned char temp = pixel[i];
+        pixel[i] = pixel[i + 2];
+        pixel[i + 2] = temp;
+    }
+
+    for (int i = 0; i < size; i++) {
+        pixelData.push_back(pixel[i]);
+    }
+
+    //printf("%lu\n", pixelData.size());
+    // return data;
 }
 
 void setup()
@@ -115,6 +166,17 @@ void setup()
         //controlPoints[10] = Position(0, 50, 40);
     
     }
+
+    const char *texFile = "./flower.bmp";
+    readBMP((char*) texFile);
+    glGenTextures(1, &texName);
+    glBindTexture(GL_TEXTURE_2D, texName);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WIDTH_IMG, HEIGHT_IMG, 0, GL_RGB,
+        GL_UNSIGNED_BYTE, pixelData.data());
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 
 void reshape( int w, int h ){
@@ -162,11 +224,15 @@ void modifyControlPoints(int id, int x, int y, int z) {
     controlPoints[id].z += z;
 }
 
-void genTriangles(const vector<vector<point3d>> &pts, vector<triangle> &tr) {
+void genTriangles(const vector<vector<point3d>> &pts, const vector<vector<point2d>> &tex_coords, vector<triangle> &tr, vector<triTex> &tr_tex) {
     for (int i = 0; i < pts.size()-1; i++) {
         for (int j = 0; j < pts[0].size()-1; j++) {
             tr.push_back({pts[i][j], pts[i+1][j+1], pts[i][j+1]});
+            triTex tmp = {tex_coords[i][j], tex_coords[i+1][j+1], tex_coords[i][j+1]};
+            tr_tex.push_back(tmp); // also store texCoord for later
             tr.push_back({pts[i][j], pts[i+1][j], pts[i+1][j+1]});
+            triTex tmp2 = {tex_coords[i][j], tex_coords[i+1][j], tex_coords[i+1][j+1]};
+            tr_tex.push_back(tmp2);
         }
     }
 }
@@ -180,9 +246,11 @@ void DrawBezierSurface() {
     }
     // compute bezier surface points
     vector<vector<point3d>> pt_buffer;
+    vector<vector<point2d>> texCoordBuffer; // for texture coordinates
     int indi = 0, indj = 0;
     for (double u = 0; u <= 60; u += .5) { // surface boundaries
         vector<point3d> tmp_buffer;
+        vector<point2d> tex_tmp_buffer;
         for (double v = 0; v <= 60; v += .5) {
             indj++;
             double x = 0, y = 0, z = 0;
@@ -198,13 +266,17 @@ void DrawBezierSurface() {
             // store point
             point3d p = {x, y, z};
             tmp_buffer.push_back(p);
+            point2d tex_p = {u/60, v/60}; // get current texture coordinates
+            tex_tmp_buffer.push_back(tex_p);
         }
         pt_buffer.push_back(tmp_buffer);
+        texCoordBuffer.push_back(tex_tmp_buffer);
     }
 
-    // find triangles from point grid
+    // find triangles from point grid (and tex coordinates)
     vector<triangle> triangles;
-    genTriangles(pt_buffer, triangles);
+    vector<triTex> tri_tex_coords;
+    genTriangles(pt_buffer, texCoordBuffer, triangles, tri_tex_coords);
 
     // determine triangle normals
     vector<normal> norms;
@@ -240,20 +312,32 @@ void DrawBezierSurface() {
             }
         }
     } else { // POLYGONS (filled triangles)
+        if (show_texture) {
+            glEnable(GL_TEXTURE_2D);
+            glColor3f(1.0f, 1.0f, 1.0f);
+        } else {
+            glColor3f(0.0, 0.5, 0);
+        }
+        
+        glBegin(GL_TRIANGLES);
         for (int i = 0; i < num_tri; i++) {
             if (vis[i] || show_backface) {
-                glColor3f(0, .5, 0);
                 GLfloat norm[3] = {-1*(float)norms[i].x, -1*(float)norms[i].y, -1*(float)norms[i].z};
-                glBegin(GL_TRIANGLES);
                 glNormal3fv(norm);
+                glTexCoord2f(tri_tex_coords[i].t2.u, tri_tex_coords[i].t2.v); // always bind tex coords even if not showing
                 glVertex3f(triangles[i].p2.x, triangles[i].p2.y, triangles[i].p2.z);
+               
                 glNormal3fv(norm);
+                glTexCoord2f(tri_tex_coords[i].t1.u, tri_tex_coords[i].t1.v);
                 glVertex3f(triangles[i].p1.x, triangles[i].p1.y, triangles[i].p1.z);
+               
                 glNormal3fv(norm);
+                glTexCoord2f(tri_tex_coords[i].t3.u, tri_tex_coords[i].t3.v);
                 glVertex3f(triangles[i].p3.x, triangles[i].p3.y, triangles[i].p3.z);
-                glEnd();
             }
         }
+        glEnd();
+        if (show_texture) glDisable(GL_TEXTURE_2D);
     }   
 }
 
@@ -410,6 +494,11 @@ void keyHandler(unsigned char key, int x, int y) {
         case 'n':
             matDiffuse[1] -= .1;
             if (matDiffuse[1]<0) matDiffuse[1] = 0;
+            break;
+        case 't':
+            if (show_texture) show_texture = false;
+            else show_texture = true;
+            printState();
             break;
     }
     glutPostRedisplay();
