@@ -1,5 +1,9 @@
 # Usage
 
+## Compilation
+
+```make``` will build and run the project (must have OpenGL/GLUT).
+
 ## Controls
 ### Bézier surface manipulation
 ```r``` - switch active control point, current shown in red
